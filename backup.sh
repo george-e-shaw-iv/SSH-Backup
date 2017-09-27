@@ -9,13 +9,19 @@ helpSequence ()
 	printf "\e[32m\t\tThis runs the script as intended. The backup for both the file server and\n\t\tthe database will be placed in the directory provided.\n\n\e[39m"
 }
 
-sshPortNumber=
-sshPrivateKey=
+sshPortNumber=22 # Default SSH Port is Port 22
+# sshPrivateKey= # Can be ommitted if allowable
 sshUser=
-sshServer=
+sshHost=
 databaseName=
 databaseUser=
 
+# Check if variables are set
+if [ -z $sshPortNumber ] || [ -z $sshUser ] || [ -z $sshHost ] || [ -z $databaseName ] || [ -z $databaseUser ]
+then
+	printf "\e[31mFATAL: Not all needed variables are set. Please set all required variables and re-run.\e[0m\n"
+	exit 1
+fi
 
 # Check if help dialouge is needed
 if [ "$1" = "help" ] || [ $# != 1 ]
@@ -45,16 +51,16 @@ printf "\e[31m\nChecking for and Deleting Old Database Exports in Backup Folder\
 rm -f $backupDir$databaseName.sql
 
 printf "\e[31m\nExporting MySQL Database\e[5m...\e[0m\n"
-ssh -tt -p $sshPortNumber -i $sshPrivateKey $sshUser@$sshServer 'mysqldump -u '$databaseUser' -p '$databaseName' > '$databaseName'.sql'
+ssh -tt -p $sshPortNumber -i $sshPrivateKey $sshUser@$sshHost 'mysqldump -u '$databaseUser' -p '$databaseName' > '$databaseName'.sql'
 
 printf "\n\e[31m\nCopying Database Export to Local Machine\e[5m...\e[0m\n"
-scp -P $sshPortNumber -i $sshPrivateKey $sshUser@$sshServer:~/bctest5_drupal.sql $backupDir$databaseName.sql
+scp -P $sshPortNumber -i $sshPrivateKey $sshUser@$sshHost:~/$databaseName.sql $backupDir$databaseName.sql
 
 printf "\n\e[31m\nRemoving Database Export from Remote Server\e[5m...\e[0m\n"
-ssh -tt -p $sshPortNumber -i $sshPrivateKey $sshUser@$sshServer 'rm -f '$databaseName'.sql'
+ssh -tt -p $sshPortNumber -i $sshPrivateKey $sshUser@$sshHost 'rm -f '$databaseName'.sql'
 
 printf "\n\e[31m\nSyncing Remote File Server with Local Copy\e[5m...\e[0m\n"
-rsync -zr -e "ssh -p $sshPortNumber -i $sshPrivateKey" --progress $sshUser@$sshServer:~/public_html/ $backupDir"public_html"
+rsync -zr -e "ssh -p $sshPortNumber -i $sshPrivateKey" --progress $sshUser@$sshHost:~/public_html/ $backupDir"public_html"
 
 printf "\e[32m\nBackup Successfully Completed... Exiting\e[0m\n\n"
 
